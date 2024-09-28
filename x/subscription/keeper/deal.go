@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/store/prefix"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"golang.org/x/sync/errgroup"
 )
 
 func (k Keeper) SetDeal(ctx sdk.Context, deal types.Deal) {
@@ -79,4 +80,56 @@ func (k Keeper) IterateDeals(ctx sdk.Context, shouldBreak func(deal types.Deal) 
 			break
 		}
 	}
+}
+
+// Iterate over all deals for a specific state and apply the given callback function
+func (k Keeper) IterateDealsByState(ctx sdk.Context, statePrefix string, shouldBreak func(deal types.Deal) bool) {
+	storeAdapter := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
+	// Create an iterator for the given state prefix
+	iterator := prefix.NewStore(storeAdapter, types.KeyPrefix(statePrefix)).Iterator(nil, nil)
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		var deal types.Deal
+		k.cdc.MustUnmarshal(iterator.Value(), &deal)
+		if shouldBreak(deal) {
+			break
+		}
+	}
+}
+
+// IterateDealsByPrefixesAsync concurrently iterates over deals with the provided state prefixes.
+// It spawns a goroutine for each prefix and applies the given callback function to the deals.
+func (k Keeper) IterateDealsByPrefixesAsync(ctx sdk.Context, statePrefixes []string, shouldBreak func(deal types.Deal) bool) error {
+	var g errgroup.Group
+
+	// Iterate over each prefix and spawn a goroutine to process the deals for that prefix
+	for _, prefix := range statePrefixes {
+		statePrefix := prefix // Capture loop variable
+
+		// Add goroutine to the errgroup
+		g.Go(func() error {
+			// Call the original IterateDealsByState function for the given prefix
+			k.IterateDealsByState(ctx, statePrefix, shouldBreak)
+			return nil // Return nil as error if everything goes well
+		})
+	}
+
+	// Wait for all goroutines to complete and handle any errors
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IterateDealsByPrefixes iterates over deals with the provided state prefixes.
+func (k Keeper) IterateDealsByPrefixes(ctx sdk.Context, statePrefixes []string, shouldBreak func(deal types.Deal) bool) error {
+	// Iterate over each prefix and spawn a goroutine to process the deals for that prefix
+	for _, prefix := range statePrefixes {
+		statePrefix := prefix // Capture loop variable
+		// Call the original IterateDealsByState function for the given prefix
+		k.IterateDealsByState(ctx, statePrefix, shouldBreak)
+	}
+	return nil
 }

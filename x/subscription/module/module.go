@@ -153,14 +153,11 @@ func (am AppModule) BeginBlock(_ context.Context) error {
 // The end block implementation is optional.
 func (am AppModule) EndBlock(goCtx context.Context) error {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	am.keeper.IterateDeals(ctx, func(deal types.Deal) bool {
+	relevantDeals := []string{types.DealActivePrefix, types.DealScheduledPrefix, types.DealInitialisedPrefix, types.DealInactivePrefix} 
+	am.keeper.IterateDealsByPrefixes(ctx, relevantDeals, func(deal types.Deal) bool {
 		// deal status updates
 		// return false to callback to continue iteration
 		switch deal.Status {
-		case types.Deal_EXPIRED:
-			return false
-		case types.Deal_CANCELLED:
-			return false
 		case types.Deal_SCHEDULED:
 			if uint64(ctx.BlockHeight()) < deal.StartBlock {
 				return false

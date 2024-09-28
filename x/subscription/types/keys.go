@@ -10,8 +10,17 @@ const (
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_subscription"
 
-	DealKeyPrefix         = "Deal/value"
 	SubscriptionKeyPrefix = "Subscription/value"
+	
+	// old prefix
+	DealKeyPrefix         = "Deal/value"
+	// DealKeyPrefix defines key prefixes for different deal states
+    DealScheduledPrefix   = "Deal/scheduled"
+    DealInitialisedPrefix = "Deal/initialised"
+    DealActivePrefix      = "Deal/active"
+    DealInactivePrefix    = "Deal/inactive"
+    DealCancelledPrefix   = "Deal/cancelled"
+    DealExpiredPrefix     = "Deal/expired"
 )
 
 var (
