@@ -15,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
@@ -98,6 +99,7 @@ type AppModule struct {
 	keeper        keeper.Keeper
 	accountKeeper types.AccountKeeper
 	bankKeeper    types.BankKeeper
+	stakingKeeper types.StakingKeeper
 }
 
 func NewAppModule(
@@ -105,12 +107,14 @@ func NewAppModule(
 	keeper keeper.Keeper,
 	accountKeeper types.AccountKeeper,
 	bankKeeper types.BankKeeper,
+	stakingKeeper types.StakingKeeper,
 ) AppModule {
 	return AppModule{
 		AppModuleBasic: NewAppModuleBasic(cdc),
 		keeper:         keeper,
 		accountKeeper:  accountKeeper,
 		bankKeeper:     bankKeeper,
+		stakingKeeper:  stakingKeeper,
 	}
 }
 
@@ -237,6 +241,7 @@ type ModuleInputs struct {
 
 	AccountKeeper types.AccountKeeper
 	BankKeeper    types.BankKeeper
+	StakingKeeper types.StakingKeeper
 }
 
 type ModuleOutputs struct {
@@ -252,17 +257,25 @@ func ProvideModule(in ModuleInputs) ModuleOutputs {
 	if in.Config.Authority != "" {
 		authority = authtypes.NewModuleAddressOrBech32Address(in.Config.Authority)
 	}
+
+	moduleAddress := authtypes.NewModuleAddress(types.ModuleName)
+
 	k := keeper.NewKeeper(
 		in.Cdc,
 		in.StoreService,
 		in.Logger,
 		authority.String(),
+		moduleAddress.String(),
+		in.AccountKeeper,
+		in.BankKeeper,
+		in.StakingKeeper,
 	)
 	m := NewAppModule(
 		in.Cdc,
 		k,
 		in.AccountKeeper,
 		in.BankKeeper,
+		in.StakingKeeper,
 	)
 
 	return ModuleOutputs{SubscriptionKeeper: k, Module: m}
